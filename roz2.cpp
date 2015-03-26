@@ -33,6 +33,8 @@ struct picture{
 	picture(char *);
 	picture(int s_x, int s_y);
 	void save(char *);
+	bool inrange(int, int);
+	inrange(int x, int y, cilia & c);
 };
 
 picture::picture(char * file){
@@ -55,9 +57,7 @@ picture::picture(char * file){
 
 picture::picture(int s_x, int s_y){
 	x=s_x;
-	y=s_y;
-	//printf("Y:%d\n", y);
-	
+	y=s_y;	
 }
 
 void picture::save(char * file){
@@ -76,6 +76,13 @@ void picture::save(char * file){
 		}
 	}
 	fclose(fw);
+}
+
+bool picture::inrange(int p_x, int p_y){
+	if((p_x>=0)&&(p_y>=0)&&(p_x<x)&&(p_y<y)){
+		return true;
+	}
+	return false;
 }
 
 picture::picture(){
@@ -164,7 +171,7 @@ double pearson(cilia & a, cilia & b){
 	return sum/(sqrt(d_a)*sqrt(d_b));
 }
 
-bool inrange(int x, int y, cilia & c, picture & p){
+picture::inrange(int x, int y, cilia & c, picture & p){
 	if((x>p.x-c.rad)||(x<c.rad+10)||(y>p.y-c.rad)||(y<c.rad+10)){
 		return false;
 	}
@@ -176,7 +183,6 @@ void pear(cilia sam,picture & in,picture & out,int simple){
 	for(int i=0;i<in.y;i++){
 		printf("%d\n", i);
 		for(int j=0;j<in.x;j++){
-		//	printf("%d %d\n", i,j);
 			if(inrange(j,i,sam,in)){
 				cilia act(j,i,sam.rad,in);
 				if(simple){
@@ -217,7 +223,7 @@ pair<int,int> findExactCentre(picture & in, int x, int y,int rad, int threshold)
 		count++;
 		q.pop();
 		for(int i=0;i<4;i++){
-			if((y+dy[i]>=0)&&(y+dy[i]<in.y)&&(x+dx[i]>=0)&&(x+dx[i]<in.x)){
+			if(in.inrange(x+dx[i],y+dy[i])){
 				if((in.m[y+dy[i]][x+dx[i]]>threshold)&&(visited.count(make_pair(x+dx[i],y+dy[i]))==0)){
 					q.push(make_pair(x+dx[i],y+dy[i]));
 					visited.insert(make_pair(x+dx[i],y+dy[i]));
@@ -232,7 +238,6 @@ void draw_point(int rad,int x, int y, picture & p,double color){
 	for(int i=y-rad;i<y+rad;i++){
 		for(int j=x-rad;j<x+rad;j++){
 			if((0<=i)&&(0<=j)&&(i<p.y)&&(j<p.x)){
-			//	printf("%d %d\n", i,j);
 				p.m[i][j]=color;
 			}
 		}
@@ -257,26 +262,26 @@ void findCentres(picture & in, picture & out, int rad,int threshold, vector<pair
 			if(!isNewCiliaCentre(to_sort[i].second.first,to_sort[i].second.second,
 				centres2[j].first,centres2[j].second,80)){
 				an=false;
-				break;
-			}
-		}
-		if(an){
-			if(to_sort[i].first>threshold){
-				pair<int, int> p=findExactCentre(in,to_sort[i].second.second,to_sort[i].second.first,80,threshold);
-				centres2.push_back(p);
-			}
+			break;
 		}
 	}
-	out.m.resize(out.y);
-	for(int i=0;i<out.y;i++){
-		for(int j=0;j<out.x;j++){
-			out.m[i].push_back(1.0);
+	if(an){
+		if(to_sort[i].first>threshold){
+			pair<int, int> p=findExactCentre(in,to_sort[i].second.second,to_sort[i].second.first,80,threshold);
+			centres2.push_back(p);
 		}
 	}
-	for(int i=0;i<centres2.size();i++){
-		draw_point(3,centres2[i].second,centres2[i].first,out,0.0);
+}
+out.m.resize(out.y);
+for(int i=0;i<out.y;i++){
+	for(int j=0;j<out.x;j++){
+		out.m[i].push_back(1.0);
 	}
-	centres=centres2;
+}
+for(int i=0;i<centres2.size();i++){
+	draw_point(3,centres2[i].second,centres2[i].first,out,0.0);
+}
+centres=centres2;
 }
 
 void lines(picture & in, picture & out, int rad, vector<pair<int,int> > & circles,int num_lines){
@@ -298,16 +303,20 @@ void lines(picture & in, picture & out, int rad, vector<pair<int,int> > & circle
 			ab.first=sin(((PI)/num_lines)*k);
 			for(int i=y-rad;i<y+rad;i++){
 				for(int j=x-rad;j<x+rad;j++){
-					ac.first=i-y; ac.second=j-x;
-					if((i>=0)&&(j>=0)&&(in.y>i)&&(in.x>j)&&(i!=y)&&(j!=x)){
-						double temp=abs(-ab.second*ac.first+ab.first*ac.second);
-						if(round(temp)==0){
-							//printf("%f %f %f %f %f %f %f\n",temp,ac.first,ac.second,ab.first,ab.second,in.m[i][j],in.m[i][j]);
-							sum+=in.m[i][j];
-						}else{
-							sum+=in.m[i][j]/temp;
-							//printf("%f %f %f %f %f %f %f\n",temp,ac.first,ac.second,ab.first,ab.second,in.m[i][j],in.m[i][j]/temp);
+					if(sqrt((x-j)*(x-j)+(y-i)*(y-i))<rad){
+						ac.first=i-y; ac.second=j-x;
+						if((i>=0)&&(j>=0)&&(in.y>i)&&(in.x>j)&&(i!=y)&&(j!=x)){
+							double temp=abs(-ab.second*ac.first+ab.first*ac.second);
+							//if(temp<0.5){
+						//	printf("%f %f %f %f %f %f %f\n",temp,ac.first,ac.second,ab.first,ab.second,in.m[i][j],in.m[i][j]);
+							//	sum+=in.m[i][j];
+							//}else{
+								sum+=in.m[i][j]/(temp+1);
+						//	printf("%f %f %f %f %f %f %f\n",temp,ac.first,ac.second,ab.first,ab.second,in.m[i][j],in.m[i][j]/temp);
 
+							//}
+						}else{
+						//printf("skaasdkdaskASSSSSSSSSSSSSSSSSS\n");
 						}
 					}
 				}
@@ -318,9 +327,10 @@ void lines(picture & in, picture & out, int rad, vector<pair<int,int> > & circle
 				m_y=ab.second;
 			}
 		//printf("sum:%f max:%f\n", sum,max);
-				printf("baf:  %f %f %f\n", ab.first,ab.second,sum);
+			printf("baf:  %f %f %f\n", ab.first,ab.second,sum);
 
 		}
+		printf("baf:***  %f %f %f %d %d\n", m_x,m_y,min,x,y);
 		for(int i=-25;i<25;i+=2){
 			draw_point(3,x+m_y*i,y+m_x*i,out,0.0);
 		}
@@ -378,13 +388,15 @@ int main(int argc, char * argv[]){
 	p2.save(argv[6]);
 //	printf("%f \n", simple_pearson(c,d));**/
 
-	picture p1("fotky/Tv4-small-out.pgm");
-	picture p3("fotky/Tv4-small.pgm");
-	picture p2(p1.x,p1.y);
+	picture p1("fotky/Tv4-small-crop.pgm");
+	picture p3("fotky/Tv4-small-out-crop.pgm");
+	picture p2(p3.x,p3.y);
+	picture p4(p1.x,p1.y);
 	vector<pair<int,int>> centres;
-	findCentres(p1,p2,80,180,centres);
-	lines(p3,p2,80,centres,100);
-	p2.save("fotky/Tv4-small-out-out.pgm");
+	//centres.push_back(make_pair(676,400));
+	findCentres(p3,p2,80,180,centres);
+	lines(p1,p4,20,centres,80);
+	p4.save("fotky/Tv4-small-orient-crop.pgm");
 
 }
 
