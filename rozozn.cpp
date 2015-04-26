@@ -235,6 +235,26 @@ void pear(cilia sam,picture & in,picture & out,int simple){
 	}
 }
 
+void pear_selective(cilia sam,picture & in1,picture & in2, picture & out,int simple, double threshold){
+	vector <pair<double,pair<int,int > > >to_sort; 
+	for(int i=0;i<in2.y;i++){
+		for(int j=0;j<in2.x;j++){
+			if(in2.m[i][j]!=0.0){
+				to_sort.push_back(make_pair(in2.m[i][j],make_pair(i,j)));
+			}
+		}
+	}
+	sort(to_sort.begin(),to_sort.end());
+	for(int i=0;i<to_sort.size();i++){
+		if(to_sort[i].first<threshold){
+			if(inrange(to_sort[i].second.second,to_sort[i].second.first,sam,in1)){
+				cilia act(to_sort[i].second.second,to_sort[i].second.first,in1);
+				out.m[to_sort[i].second.first][to_sort[i].second.second]=simple_pearson(sam,act);
+			}
+		}
+	}
+}
+
 
 bool isNewCiliaCentre(int x1,int y1,int x2,int y2, int rad){
 	return sqrt(abs(x1-x2)*abs(x1-x2)+abs(y1-y2)*abs(y1-y2))>2*rad;
@@ -387,7 +407,8 @@ void findOrientation(picture & in, picture & out, int rad, vector<pair<int,int> 
 
 void preprocessPrefix(picture & in, picture & out){
 	double pr[in.y+5][in.x+5];
-	for(int i=0;i<in.y;i++){
+	printf("%d %d\n", in.y,in.x);
+/*	for(int i=0;i<in.y;i++){
 		pr[i][0]=0;
 	}
 	for(int j=0;j<in.x;j++){
@@ -412,7 +433,7 @@ void preprocessPrefix(picture & in, picture & out){
 		for(int j=rad;j<in.x-rad;j++){
 			out.m[i][j]=out.m[i][j]/max;
 		}
-	}
+	}*/
 }
 
 int main(int argc, char * argv[]){
@@ -448,8 +469,13 @@ int main(int argc, char * argv[]){
 	int cilia_rad=80;
 	picture p1("Tv4-small-crop.pgm");
 	p1.setRad(cilia_rad);
-	picture p2(p1.x,p1.y,0.5);
+	picture p2(p1.x,p1.y,1);
+	printf("%d %d\n", p1.x,p1.y);
 	preprocessPrefix(p1,p2);
 	p2.save("rias-out.pgm");
-
+/*picture p3(p1.x,p1.y,0);
+	cilia c(267,175,p1);
+	pear_selective(c,p1,p2, p3,1, 0.5);
+	p3.save("rias-out2.pgm");
+*/
 }
