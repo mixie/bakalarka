@@ -7,6 +7,8 @@
 #include <cassert>
 #include <queue>
 #include <unordered_set>
+#include <string.h>
+
 
 
 using namespace std;
@@ -135,15 +137,10 @@ cilia::cilia(int x, int y,picture & p){
 	cen_y=y;
 	pic=p;
 	rad=p.rad;
-	assert(rad!=-1);
 }
 
 
 int cilia::ret_xy(int x, int y){
-	assert(cen_y-rad+y>=0);
-	assert(cen_x-rad+x>=0);
-	assert(cen_y-rad+y<pic.y);
-	assert(cen_x-rad+x<pic.x);
 	return pic.m[cen_y-rad+y][cen_x-rad+x];
 }
 
@@ -245,18 +242,27 @@ void pear_selective(cilia sam,picture & in1,picture & in2, picture & out,int sim
 		}
 	}
 	sort(to_sort.begin(),to_sort.end());
+	int counter=0;
 	for(int i=0;i<to_sort.size();i++){
+		counter++;
+		if(counter%1000==0){
+			printf("%d\n", counter);
+		}
 		if(to_sort[i].first<threshold){
 			if(inrange(to_sort[i].second.second,to_sort[i].second.first,sam,in1)){
 				cilia act(to_sort[i].second.second,to_sort[i].second.first,in1);
+				//printf("%d %d\n",to_sort[i].second.second,to_sort[i].second.first);
 				out.m[to_sort[i].second.first][to_sort[i].second.second]=simple_pearson(sam,act);
 			}
+		}else{
+			return;
 		}
 	}
 }
 
 
 bool isNewCiliaCentre(int x1,int y1,int x2,int y2, int rad){
+//	printf("%d %d %d %d %f\n", x1,x2,y1,y2,sqrt(abs(x1-x2)*abs(x1-x2)+abs(y1-y2)*abs(y1-y2)));
 	return sqrt(abs(x1-x2)*abs(x1-x2)+abs(y1-y2)*abs(y1-y2))>2*rad;
 }
 
@@ -345,7 +351,7 @@ void findCentres(picture & in, picture & out, int rad,double threshold, vector<p
 		}
 		if(an){
 			if(to_sort[i].first>threshold){
-				printf("%d %d %f\n", to_sort[i].second.second,to_sort[i].second.first,to_sort[i].first);
+				//printf("%d %d %f\n", to_sort[i].second.second,to_sort[i].second.first,to_sort[i].first);
 				pair<int, int> p=findExactCentre(in,to_sort[i].second.second,to_sort[i].second.first,threshold);
 				centres.push_back(p);
 			}
@@ -385,7 +391,6 @@ void findOrientation(picture & in, picture & out, int rad, vector<pair<int,int> 
 			for(int i=y-rad;i<y+rad;i++){
 				for(int j=x-rad;j<x+rad;j++){
 					if(sqrt((x-j)*(x-j)+(y-i)*(y-i))<rad){
-						printf("YOLO\n");
 						ac.first=i-y; ac.second=j-x;
 						if(in.inrange(j,i)){
 							sum+=(in.m[i][j]*255)/(abs(-ab.second*ac.first+ab.first*ac.second)+1);
@@ -406,9 +411,13 @@ void findOrientation(picture & in, picture & out, int rad, vector<pair<int,int> 
 }
 
 void preprocessPrefix(picture & in, picture & out){
-	double pr[in.y+5][in.x+5];
+	vector <vector<double > > pr;
+	pr.resize(in.y+5);
+	for(int i =0;i<in.y+5;i++){
+		pr[i].resize(in.x+5);
+	}
 	printf("%d %d\n", in.y,in.x);
-/*	for(int i=0;i<in.y;i++){
+	for(int i=0;i<in.y;i++){
 		pr[i][0]=0;
 	}
 	for(int j=0;j<in.x;j++){
@@ -423,7 +432,7 @@ void preprocessPrefix(picture & in, picture & out){
 	double max=0;
 	for(int i=rad;i<in.y-rad;i++){
 		for(int j=rad;j<in.x-rad;j++){
-			out.m[i][j]=pr[i+1+rad][j+1+rad]-pr[i+1][j+1-rad]-pr[i+1-rad][j+1]+pr[i+1-rad][j+1-rad];
+			out.m[i][j]=pr[i+1+rad][j+1+rad]-pr[i+1+rad][j+1-rad]-pr[i+1-rad][j+1+rad]+pr[i+1-rad][j+1-rad];
 			if(out.m[i][j]>max){
 				max=out.m[i][j];
 			}
@@ -433,7 +442,20 @@ void preprocessPrefix(picture & in, picture & out){
 		for(int j=rad;j<in.x-rad;j++){
 			out.m[i][j]=out.m[i][j]/max;
 		}
-	}*/
+	}
+}
+
+int threshold1(picture & in, picture & out, double threshold){
+	int c=0;
+	for(int i=0;i<in.y;i++){
+		for(int j=0;j<in.x;j++){
+			if(in.m[i][j]<threshold){
+				c++;
+			}
+			out.m[i][j]=(int)(in.m[i][j]>threshold);
+		}
+	}
+	return c;
 }
 
 int main(int argc, char * argv[]){
@@ -466,16 +488,63 @@ int main(int argc, char * argv[]){
 	findOrientation(p5,p8,cilia_rad,centres2,num_lines);
 	p7.save("Tv4-small-crop-centres.pgm");
 	p8.save("Tv4-small-crop-orient.pgm");**/
-	int cilia_rad=80;
+/*	int cilia_rad=80;
+	int random_points=10;
+	int threshold=200;
+	int num_lines=100;
+	init_circles(cir,cilia_rad,random_points);
 	picture p1("Tv4-small-crop.pgm");
 	p1.setRad(cilia_rad);
 	picture p2(p1.x,p1.y,1);
 	printf("%d %d\n", p1.x,p1.y);
 	preprocessPrefix(p1,p2);
 	p2.save("rias-out.pgm");
-/*picture p3(p1.x,p1.y,0);
+	picture p4(p1.x,p1.y,1);
+	printf("%d",threshold1(p2,p4,0.62));
+	p4.save("threshold.pgm");
+ 	picture p3(p1.x,p1.y,0);
 	cilia c(267,175,p1);
-	pear_selective(c,p1,p2, p3,1, 0.5);
-	p3.save("rias-out2.pgm");
-*/
+	pear_selective(c,p1,p2, p3,1, 0.62);
+	p3.save("rias-out3.pgm");
+	picture p5(p1.x,p1.y,1.0);
+	vector <pair<int,int>> centres;
+	findCentres(p3,p5,cilia_rad,threshold,centres);
+	p5.save("rias-out-pom23.pgm");
+	picture p6(p1.x,p1.y,1.0);
+	findOrientation(p1,p6,cilia_rad,centres,num_lines);
+	p6.save("rias-out23.pgm");*/
+	int cilia_rad=80;
+	int random_points=10;
+	int threshold=200;
+	int num_lines=100;
+	int x=1814,y=1230;
+	double threshold2=0.5;
+	init_circles(cir,cilia_rad,random_points);
+	char s[100]="fotky/Tv10";
+	char s2[100];
+	strcpy(s2,s);
+	picture p1(strcat(s,".pgm"));
+	strcpy(s,s2);
+	p1.setRad(cilia_rad);
+	picture p2(p1.x,p1.y,1);
+	preprocessPrefix(p1,p2);
+	p2.save(strcat(s,"02.pgm"));
+strcpy(s,s2);	
+picture p3(p1.x,p1.y,1);
+	printf("points:%d\n",threshold1(p2,p3,threshold2));
+	p3.save(strcat(s,"03.pgm"));
+strcpy(s,s2);	
+cilia c(x,y,p1);
+	picture p4(p1.x,p1.y,0);
+	pear_selective(c,p1,p2,p4,1,threshold2);
+	p4.save(strcat(s,"04.pgm"));
+strcpy(s,s2);	
+picture p5(p1.x,p1.y,1);
+	vector <pair<int,int>> centres;
+	findCentres(p4,p5,cilia_rad,threshold,centres);
+	p5.save(strcat(s,"05.pgm"));
+strcpy(s,s2);	
+picture p6(p1.x,p1.y,1.0);
+	findOrientation(p1,p6,cilia_rad,centres,num_lines);
+	p6.save(strcat(s,"06.pgm"));
 }
